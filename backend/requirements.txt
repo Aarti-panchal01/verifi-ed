@@ -1,4 +1,7 @@
-fastapi
-uvicorn
-algokit-utils
-algosdk
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+python-dotenv==1.0.1
+algokit-utils==2.3.0
+py-algorand-sdk==2.5.0
+httpx==0.27.0
+pydantic==2.6.1
