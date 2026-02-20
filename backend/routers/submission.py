@@ -112,6 +112,18 @@ async def submit_record_async(req: SubmitRequest, background_tasks: BackgroundTa
     )
 
 
+class PrepareRequest(BaseModel):
+    wallet: str
+
+
+@router.post("/submit/prepare")
+async def prepare_submission(req: PrepareRequest):
+    """Ensure App hash MBR for user's box before frontend submission."""
+    service = get_contract_service()
+    service.ensure_user_mbr(req.wallet)
+    return {"status": "ready", "wallet": req.wallet}
+
+
 @router.post("/submit", response_model=SubmitResponse)
 async def submit_record(req: SubmitRequest):
     """Submit a skill attestation record on-chain."""

@@ -20,22 +20,28 @@ export default function ScoreCircle({ score, size = 120, label = 'Score' }) {
 
     return (
         <div className="score-circle" style={{ width: size, height: size }}>
-            <svg viewBox={`0 0 ${size} ${size}`}>
+            <svg className="score-svg" width={size} height={size}>
                 <circle
                     className="score-circle-bg"
+                    stroke="var(--border-subtle)"
+                    strokeWidth="4"
+                    fill="transparent"
+                    r={radius}
                     cx={size / 2}
                     cy={size / 2}
-                    r={radius}
                 />
                 <circle
                     className="score-circle-fill"
+                    stroke={tierColor}
+                    strokeWidth="4"
+                    fill="transparent"
+                    r={radius}
                     cx={size / 2}
                     cy={size / 2}
-                    r={radius}
-                    stroke={tierColor}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    style={{ filter: `drop-shadow(0 0 6px ${tierColor})` }}
+                    style={{
+                        strokeDasharray: `${circumference} ${circumference}`,
+                        strokeDashoffset: offset
+                    }}
                 />
             </svg>
             <div className="score-circle-value">

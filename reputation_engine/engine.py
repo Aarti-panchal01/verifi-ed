@@ -165,7 +165,10 @@ class ReputationEngine:
             weighted_sum += raw_score * decay
             weight_sum += decay
 
-        avg_score = weighted_sum / weight_sum if weight_sum > 0 else 0.0
+        if weight_sum > 0:
+            avg_score = weighted_sum / weight_sum
+        else:
+            avg_score = 0.0
 
         # Trend detection
         if len(records) >= 2:

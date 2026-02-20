@@ -5,14 +5,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
-    content="Verified Protocol — Decentralized Skill Reputation Layer for AI-Verified Talent on Algorand. Submit evidence, build reputation, and verify credentials on-chain." />
-  <meta name="theme-color" content="#07080d" />
+    content="verifi.ED — Decentralized Skill Reputation Layer. AI-verified talent credentials on Algorand blockchain." />
+  <meta name="theme-color" content="#000000" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <title>Verified Protocol — Skill Reputation Layer</title>
+  <title>verifi.ED — AI-Powered Skill Verification</title>
 </head>
 
 <body>
   <div id="root"></div>
+  <script>
+    // Polyfills for @perawallet/connect (needs Node.js globals in browser)
+    window.global = window.global || window;
+    window.process = window.process || { env: {} };
+    window.Buffer = window.Buffer || { isBuffer: function () { return false; } };
+  </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

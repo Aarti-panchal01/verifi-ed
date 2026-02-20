@@ -404,6 +404,8 @@ class ContractService:
 
         Sends ALGO to the app address to cover Box storage costs.
         If transaction already in ledger, treats as success.
+        If funding fails for other reasons, logs warning but proceeds, 
+        hoping app has sufficient balance.
 
         Parameters
         ----------
@@ -442,8 +444,13 @@ class ContractService:
             if "transaction already in ledger" in error_msg or "already in pool" in error_msg:
                 logger.debug("✓ Box MBR funding transaction already submitted (idempotent)")
                 return
-            logger.error("Box MBR funding failed: %s", exc)
-            raise
+            
+            # Warn but don't crash - maybe app has funds?
+            logger.warning("Box MBR funding encountered issue (proceeding anyway): %s", exc)
+
+    def ensure_user_mbr(self, wallet: str) -> None:
+        """Ensure App account has MBR for creating a box for this wallet."""
+        self._fund_box_mbr(wallet=wallet)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

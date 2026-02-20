@@ -113,7 +113,7 @@ class VerificationResult(BaseModel):
     source_type: SourceType
     source_url: Optional[str] = None
     verified: bool
-    overall_score: float = Field(ge=0.0, le=1.0)
+    overall_score: float = Field(ge=0.0, le=1.0, default=0.0)
     signals: list[VerificationSignal] = []
     domains_detected: list[DomainDetection] = []
     metadata: dict = Field(default_factory=dict)

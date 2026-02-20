@@ -16,12 +16,14 @@ Signals extracted:
 
 Performance optimizations:
     • LRU cache with 5-minute TTL
+    • Parallel request execution (asyncio.gather)
     • Reduced commit depth (30 instead of 100)
     • Skip tree fetch for small repos
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -142,46 +144,70 @@ class GitHubAnalyzer:
         owner, repo = _parse_repo_url(repo_url)
         headers = _headers()
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            # Parallel fetches
-            repo_resp = await client.get(
-                f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers
-            )
+        # Use requests (sync) in threadpool — httpx async fails on Windows
+        import requests as _req
+        from concurrent.futures import ThreadPoolExecutor
+
+        # trust_env=False bypasses Windows proxy autodiscovery (registry)
+        # which causes ConnectTimeout even when the network works fine
+        _session = _req.Session()
+        _session.trust_env = False
+        _session.headers.update(headers)
+
+        def _get(url):
+            try:
+                r = _session.get(url, timeout=15)
+                return r
+            except (_req.exceptions.ConnectTimeout, _req.exceptions.ReadTimeout, _req.exceptions.ConnectionError) as e:
+                logger.warning("Network error for %s: %s", url, e)
+                return None
+            except Exception as e:
+                logger.warning("Request failed for %s: %s", url, e)
+                return None
+
+        # 1. Fetch Repo Metadata First (needed for default branch)
+        try:
+            repo_resp = await asyncio.to_thread(_get, f"{GITHUB_API}/repos/{owner}/{repo}")
+            if repo_resp is None:
+                return self._error_result("Failed to connect to GitHub API")
             if repo_resp.status_code == 404:
                 return self._error_result("Repository not found")
             if repo_resp.status_code == 403:
                 return self._error_result("GitHub API rate limit exceeded")
             repo_resp.raise_for_status()
             repo_data = repo_resp.json()
+        except Exception as e:
+            logger.error("GitHub API error: %s", e)
+            return self._error_result(f"Failed to fetch repo: {e}")
 
-            # Languages
-            lang_resp = await client.get(
-                f"{GITHUB_API}/repos/{owner}/{repo}/languages", headers=headers
-            )
-            languages = lang_resp.json() if lang_resp.status_code == 200 else {}
+        default_branch = repo_data.get('default_branch', 'main')
 
-            # Contributors (top 30)
-            contrib_resp = await client.get(
-                f"{GITHUB_API}/repos/{owner}/{repo}/contributors",
-                headers=headers,
-                params={"per_page": 30},
-            )
-            contributors = contrib_resp.json() if contrib_resp.status_code == 200 else []
+        # 2. Parallel Fetch for Remaining Data using ThreadPoolExecutor
+        lang_url = f"{GITHUB_API}/repos/{owner}/{repo}/languages"
+        contrib_url = f"{GITHUB_API}/repos/{owner}/{repo}/contributors?per_page=30"
+        commits_url = f"{GITHUB_API}/repos/{owner}/{repo}/commits?per_page=30"
+        tree_url = f"{GITHUB_API}/repos/{owner}/{repo}/git/trees/{default_branch}"
 
-            # Recent commits (last 30 - optimized)
-            commits_resp = await client.get(
-                f"{GITHUB_API}/repos/{owner}/{repo}/commits",
-                headers=headers,
-                params={"per_page": 30},
-            )
-            commits = commits_resp.json() if commits_resp.status_code == 200 else []
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [
+                loop.run_in_executor(pool, _get, lang_url),
+                loop.run_in_executor(pool, _get, contrib_url),
+                loop.run_in_executor(pool, _get, commits_url),
+                loop.run_in_executor(pool, _get, tree_url),
+            ]
+            results = await asyncio.gather(*futures, return_exceptions=True)
+        
+        lang_res, contrib_res, commits_res, tree_res = results
 
-            # Repo tree (root level)
-            tree_resp = await client.get(
-                f"{GITHUB_API}/repos/{owner}/{repo}/git/trees/{repo_data.get('default_branch', 'main')}",
-                headers=headers,
-            )
-            tree = tree_resp.json().get("tree", []) if tree_resp.status_code == 200 else []
+        languages = lang_res.json() if lang_res and not isinstance(lang_res, Exception) and lang_res.status_code == 200 else {}
+        contributors = contrib_res.json() if contrib_res and not isinstance(contrib_res, Exception) and contrib_res.status_code == 200 else []
+        commits = commits_res.json() if commits_res and not isinstance(commits_res, Exception) and commits_res.status_code == 200 else []
+        
+        # Tree fetch might fail if branch/sha invalid or too large
+        tree = []
+        if tree_res and not isinstance(tree_res, Exception) and tree_res.status_code == 200:
+            tree = tree_res.json().get("tree", [])
 
         # Build signals
         signals: list[VerificationSignal] = []
@@ -190,7 +216,7 @@ class GitHubAnalyzer:
             "repo": repo,
             "full_name": repo_data.get("full_name", ""),
             "description": repo_data.get("description", ""),
-            "default_branch": repo_data.get("default_branch", "main"),
+            "default_branch": default_branch,
             "created_at": repo_data.get("created_at", ""),
             "updated_at": repo_data.get("updated_at", ""),
             "pushed_at": repo_data.get("pushed_at", ""),
@@ -233,7 +259,7 @@ class GitHubAnalyzer:
             value=lang_count,
             max_value=6,
             normalized=lang_score,
-            detail=f"Languages: {', '.join(languages.keys()) if languages else 'none detected'}",
+            detail=f"Languages: {', '.join(list(languages.keys())[:5]) if languages else 'none detected'}",
         ))
 
         # 4. Community Signals
@@ -350,6 +376,21 @@ class GitHubAnalyzer:
             s.normalized * weight_map.get(s.signal_name, 0)
             for s in signals
         )
+        
+        # Calculate level/explanation for frontend
+        credibility = "Minimal"
+        if overall >= 0.9: credibility = "Exceptional"
+        elif overall >= 0.7: credibility = "Strong"
+        elif overall >= 0.5: credibility = "Moderate"
+        elif overall >= 0.3: credibility = "Developing"
+        
+        # Build explanation text for the UI
+        explanation = (
+            f"Credibility: {credibility} ({(overall * 100):.0f}/100) in {max(languages, key=languages.get) if languages else 'detected languages'}. "
+            f"Strengths: {signals[0].detail}; "
+            f"{signals[3].detail}. "
+            f"Areas for improvement: {next((s.signal_name.replace('_', ' ') for s in signals if s.normalized < 0.5), 'None')}."
+        )
 
         # ── Domain Detection ──────────────────────────────────────────
         domains = self._detect_domains(languages, tree_names, repo_data.get("topics", []))
@@ -362,13 +403,22 @@ class GitHubAnalyzer:
         metadata["contributor_count"] = len(contributors) if isinstance(contributors, list) else 0
         metadata["days_since_push"] = days_since_push
         metadata["repo_age_days"] = repo_age_days
+        metadata["explanation"] = explanation # Add explanation to metadata
+        metadata["credibility_level"] = credibility
 
-        return {
+        result = {
             "signals": signals,
             "domains": domains,
             "metadata": metadata,
             "overall_score": round(overall, 4),
         }
+        
+        _cache_analysis(repo_url, result)
+        
+        duration = time.time() - start_time
+        logger.info("[PERF] github_analyzer (async): %.2fs", duration)
+        
+        return result
 
     def _detect_domains(
         self,
