@@ -4,6 +4,8 @@
 
 VerifiedProtocol is a production-grade decentralized skill reputation layer built on Algorand. It combines on-chain attestations with deterministic AI scoring to create verifiable, tamper-proof skill credentials.
 
+
+
 ## Architecture Layers
 
 ```
