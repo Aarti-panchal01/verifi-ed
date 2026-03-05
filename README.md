@@ -11,7 +11,7 @@ VerifiedProtocol is a decentralized infrastructure for AI-verified talent reputa
 - **Production-ready architecture** with retry logic, error handling, and monitoring
 
 ## 🏗️ Architecture
-
+  
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Frontend (React)                         │
