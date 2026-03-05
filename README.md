@@ -189,7 +189,7 @@ projects/verified_protocol/
 - WHITEPAPER.md
 - Comprehensive README
 
-## 📡 API Endpoints
+## 📡 API Endpoints:
 
 ### Scoring
 - `POST /analyze/repo` — Analyze GitHub repository
