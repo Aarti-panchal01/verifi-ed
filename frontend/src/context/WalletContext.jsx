@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 
 const WalletContext = createContext(null);
 
@@ -73,6 +73,27 @@ export function WalletProvider({ children }) {
         if (addr) localStorage.setItem('verified_wallet', addr);
         else localStorage.removeItem('verified_wallet');
     }, []);
+
+    // Session reconnection logic
+    useEffect(() => {
+        if (!reconnectAttempted.current && address) {
+            reconnectAttempted.current = true;
+            getPeraWallet().then(pera => {
+                if (pera) {
+                    setPeraWalletInstance(pera);
+                    pera.reconnectSession().then(accounts => {
+                        if (accounts.length > 0) {
+                            setAddress(accounts[0]);
+                            setConnected(true);
+                            pera.connector?.on('disconnect', handleDisconnect);
+                        }
+                    }).catch(err => {
+                        console.warn('Pera reconnect error:', err);
+                    });
+                }
+            });
+        }
+    }, [address]);
 
     return (
         <WalletContext.Provider value={{

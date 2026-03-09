@@ -168,7 +168,7 @@ export default function SubmitPage() {
                     if (peraWallet) {
                         return peraWallet.signTransaction([txnsToSign]);
                     }
-                    throw new Error("Wallet not connected or Pera Wallet SDK not initialized. Please reconnect.");
+                    throw new Error("No active signer. If you only pasted a wallet address, please click 'Connect Pera Wallet' at the top to enable signing.");
                 },
                 suggestedParams: params,
                 onComplete: algosdk.OnApplicationComplete.NoOpOC,
@@ -203,7 +203,9 @@ export default function SubmitPage() {
     const langEntries = Object.entries(languages);
     const totalBytes = langEntries.reduce((s, [, b]) => s + b, 0) || 1;
 
-    const needsWallet = !address && !connected;
+    const hasAddress = !!address && address.length >= 58;
+    const canSign = !!peraWallet;
+    const needsWallet = !hasAddress;
 
     return (
         <div className="page">
@@ -564,15 +566,20 @@ export default function SubmitPage() {
                     {!submitResult && (
                         <div>
                             {needsWallet && (
-                                <div style={{ fontSize: '0.85rem', color: 'var(--warning)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div className="notice-box notice-warning" style={{ fontSize: '0.85rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                                     ⚠ Connect your wallet above before submitting on-chain.
+                                </div>
+                            )}
+                            {hasAddress && !canSign && (
+                                <div className="notice-box notice-info" style={{ fontSize: '0.85rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-cyan)' }}>
+                                    💡 Address provided in view-only mode. To sign and record this on-chain, please click "Connect Pera Wallet" at the top.
                                 </div>
                             )}
                             <button
                                 id="submit-btn"
                                 className={`btn btn-accent ${submitting ? 'btn-loading' : ''}`}
                                 onClick={handleSubmit}
-                                disabled={submitting || needsWallet}
+                                disabled={submitting || !hasAddress}
                                 style={{ width: '100%', marginTop: 8 }}
                             >
                                 {submitting ? '' : '⬡  Submit On-Chain  →'}
