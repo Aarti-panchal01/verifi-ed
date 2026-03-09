@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import ScoreCircle from '../components/ScoreCircle';
 
-VITE_API_URL = https://verifi-ed-production.up.railway.app
+const API = import.meta.env.VITE_API_URL;
 const EXPLORER = 'https://testnet.explorer.perawallet.app/tx/';
 const ALGOD_API = 'https://testnet-api.algonode.cloud';
 
