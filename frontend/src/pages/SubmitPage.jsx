@@ -89,6 +89,11 @@ export default function SubmitPage() {
             }
 
             const data = await res.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
             setAnalysis(data);
             setAnalyzeTime(((performance.now() - t0) / 1000).toFixed(1));
         } catch (e) {
