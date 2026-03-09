@@ -5,3 +5,4 @@ algokit-utils
 py-algorand-sdk
 httpx
 pydantic
+python-multipart
