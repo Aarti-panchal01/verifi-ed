@@ -10,22 +10,29 @@
  * - Type-safe endpoints
  */
 
-let API_URL = import.meta.env.VITE_API_URL;
+// Default to production Railway backend
+let resolvedAPI = "https://verifi-ed-production.up.railway.app";
 
-// Aggressively override localhost if we are running on Vercel
-const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+// Only use localhost if the browser is actually on localhost
+if (typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    resolvedAPI = "http://localhost:8000";
+}
 
-if (isVercel) {
-    if (!API_URL || API_URL.includes('localhost')) {
-        console.warn('Production environment detected. Overriding API_URL to Railway production backend.');
-        API_URL = 'https://verifi-ed-production.up.railway.app';
+// Allow environment variable to override, but ONLY if it's not localhost 
+// when we are clearly not on a local machine.
+if (import.meta.env.VITE_API_URL) {
+    const envApi = import.meta.env.VITE_API_URL;
+    const isLocalMachine = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    
+    if (isLocalMachine || !envApi.includes('localhost')) {
+        resolvedAPI = envApi;
     }
 }
 
-// Fallback for local development or subdirectory proxying
-if (!API_URL) {
-    API_URL = '/api';
-}
+const API_URL = resolvedAPI;
+console.log('[Verifi-ed] API Route Resolved:', API_URL);
 
 const TIMEOUT = 30000;
 const MAX_RETRIES = 3;

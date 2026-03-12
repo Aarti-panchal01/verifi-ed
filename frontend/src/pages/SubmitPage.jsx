@@ -222,7 +222,7 @@ export default function SubmitPage() {
         <div className="page">
             {/* ── Header ──────────────────────────────────────────── */}
             <div className="page-header">
-                <h1 className="page-title">Submit Evidence</h1>
+                <h1 className="page-title">Submit Evidence <small style={{fontSize: '0.9rem', opacity: 0.5}}>v2.2</small></h1>
                 <p className="page-subtitle">
                     Connect wallet → Analyze evidence → Submit on-chain. Your skill attestation is stored immutably on Algorand.
                 </p>
