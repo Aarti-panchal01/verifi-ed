@@ -159,4 +159,4 @@ export const api = {
   },
 };
 
-export { APIError };
+export { APIError, API_URL };

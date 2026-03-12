@@ -2,8 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import ScoreCircle from '../components/ScoreCircle';
-
-const API = import.meta.env.VITE_API_URL;
+import { API_URL as API } from '../utils/api';
 const EXPLORER = 'https://testnet.explorer.perawallet.app/tx/';
 const ALGOD_API = 'https://testnet-api.algonode.cloud';
 

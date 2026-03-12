@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import ScoreCircle from '../components/ScoreCircle';
-
-const API = import.meta.env.VITE_API_URL;
+import { API_URL as API } from '../utils/api';
 
 /* Color palette for domains */
 const DOMAIN_COLORS = {
