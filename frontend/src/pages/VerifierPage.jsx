@@ -44,10 +44,10 @@ export default function VerifierPage() {
     }
 
     const tierLabel = data ? (
-        data.credibility_score >= 90 ? 'exceptional' :
-            data.credibility_score >= 70 ? 'strong' :
-                data.credibility_score >= 50 ? 'moderate' :
-                    data.credibility_score >= 30 ? 'developing' : 'minimal'
+        data.total_reputation >= 90 ? 'exceptional' :
+            data.total_reputation >= 70 ? 'strong' :
+                data.total_reputation >= 50 ? 'moderate' :
+                    data.total_reputation >= 30 ? 'developing' : 'minimal'
     ) : '';
 
     return (
@@ -119,7 +119,7 @@ export default function VerifierPage() {
                 <div className="animate-in">
                     {/* Verification Header */}
                     <div className="score-hero" style={{ marginBottom: 24 }}>
-                        <ScoreCircle score={data.credibility_score || 0} size={140} label="Verified" />
+                        <ScoreCircle score={Math.round(data.total_reputation || 0)} size={140} label="Verified" />
                         <div className="score-hero-info" style={{ flex: 1 }}>
                             <h3 style={{ margin: 0 }}>
                                 <span className={`verification-badge ${data.verified ? 'verified' : 'unverified'}`} style={{ marginRight: 12 }}>
@@ -131,7 +131,7 @@ export default function VerifierPage() {
                                 {data.total_records || 0} on-chain attestation(s) • Trust index: {((data.trust_index || 0) * 100).toFixed(1)}%
                             </p>
                             <span className={`tier-badge ${tierLabel}`}>
-                                {tierLabel} — {data.credibility_score || 0}/100
+                                {tierLabel} — {Math.round(data.total_reputation || 0)}/100
                             </span>
                         </div>
                     </div>

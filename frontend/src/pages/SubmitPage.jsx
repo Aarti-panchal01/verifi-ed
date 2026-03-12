@@ -395,11 +395,19 @@ export default function SubmitPage() {
                         <ScoreCircle score={score} size={130} label="Credibility" />
                         <div className="score-hero-info" style={{ flex: 1 }}>
                             <h3>
-                                {sourceType === 'repo'
-                                    ? (meta.full_name || meta.repo || 'Repository Analysis')
-                                    : sourceType === 'certificate'
-                                        ? (meta.original_filename || meta.filename || 'Certificate Analysis')
-                                        : (meta.original_filename || 'Project Analysis')}
+                                {sourceType === 'repo' ? (
+                                    <a
+                                        href={meta.html_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: 'inherit', textDecoration: 'none' }}
+                                        title="View on GitHub"
+                                    >
+                                        {meta.full_name || meta.repo || 'Repository Analysis'} <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>↗</span>
+                                    </a>
+                                ) : sourceType === 'certificate'
+                                    ? (meta.original_filename || meta.filename || 'Certificate Analysis')
+                                    : (meta.original_filename || 'Project Analysis')}
                             </h3>
                             <p>
                                 {sourceType === 'repo'

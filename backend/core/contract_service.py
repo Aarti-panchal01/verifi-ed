@@ -302,17 +302,13 @@ class ContractService:
         try:
             send_params = self.manager.create_send_params()
 
-            # Step 1: Get record count
+            # Step 1: Get record count (using simulate/call for speed + no fees)
             def get_count():
-                return self.client.send.get_record_count(
-                    args=GetRecordCountArgs(wallet=wallet),
-                    send_params=send_params,
+                return self.client.call.get_record_count(
+                    args=GetRecordCountArgs(wallet=wallet)
                 )
 
-            count_result = self.manager.send_and_confirm(
-                get_count,
-                operation_name="get_record_count"
-            )
+            count_result = get_count()
             record_count = count_result.abi_return or 0
 
             logger.info("Wallet %s has %d records", wallet[:12] + "...", record_count)
@@ -325,17 +321,13 @@ class ContractService:
                     success=True,
                 )
 
-            # Step 2: Get raw box data
+            # Step 2: Get raw box data (using simulate/call)
             def get_records():
-                return self.client.send.get_skill_records(
-                    args=GetSkillRecordsArgs(wallet=wallet),
-                    send_params=send_params,
+                return self.client.call.get_skill_records(
+                    args=GetSkillRecordsArgs(wallet=wallet)
                 )
 
-            raw_result = self.manager.send_and_confirm(
-                get_records,
-                operation_name="get_skill_records"
-            )
+            raw_result = get_records()
 
             raw_return = raw_result.abi_return
             raw_bytes = bytes(raw_return) if not isinstance(raw_return, bytes) else raw_return
@@ -385,16 +377,11 @@ class ContractService:
             send_params = self.manager.create_send_params()
 
             def get_count():
-                return self.client.send.get_record_count(
-                    args=GetRecordCountArgs(wallet=wallet),
-                    send_params=send_params,
+                return self.client.call.get_record_count(
+                    args=GetRecordCountArgs(wallet=wallet)
                 )
 
-            count_result = self.manager.send_and_confirm(
-                get_count,
-                operation_name="check_box_exists",
-                max_retries=1
-            )
+            count_result = get_count()
             return True
         except Exception:
             return False

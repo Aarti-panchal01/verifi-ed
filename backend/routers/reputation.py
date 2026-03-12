@@ -49,7 +49,12 @@ class VerifyWalletResponse(BaseModel):
     record_count: int
     records: list[dict]
     message: str
-    reputation: Optional[ReputationResponse] = None
+    # Flattened reputation fields for frontend consistency
+    total_reputation: float = 0.0
+    credibility_level: str = "minimal"
+    trust_index: float = 0.0
+    top_domain: Optional[str] = None
+    domain_scores: list[DomainScoreResponse] = []
 
 
 @router.get("/reputation/{wallet}", response_model=ReputationResponse)
@@ -112,15 +117,16 @@ async def verify_wallet(wallet: str):
 
         profile = rep_engine.compute(wallet, result.records)
 
-        rep = ReputationResponse(
-            wallet=profile.wallet,
+        return VerifyWalletResponse(
+            wallet=wallet,
+            verified=profile.verification_badge,
+            record_count=len(result.records),
+            records=result.records,
+            message=f"{'✅ Verified' if profile.verification_badge else '⚠ Not yet verified'} — {profile.credibility_level.value} credibility ({profile.total_reputation:.0f}/100) with {len(result.records)} on-chain record(s).",
             total_reputation=profile.total_reputation,
             credibility_level=profile.credibility_level.value,
             trust_index=profile.trust_index,
-            verification_badge=profile.verification_badge,
-            total_records=profile.total_records,
             top_domain=profile.top_domain,
-            active_since=profile.active_since,
             domain_scores=[
                 DomainScoreResponse(
                     domain=ds.domain,
@@ -131,15 +137,6 @@ async def verify_wallet(wallet: str):
                 )
                 for ds in profile.domain_scores
             ],
-        )
-
-        return VerifyWalletResponse(
-            wallet=wallet,
-            verified=profile.verification_badge,
-            record_count=len(result.records),
-            records=result.records,
-            message=f"{'✅ Verified' if profile.verification_badge else '⚠ Not yet verified'} — {profile.credibility_level.value} credibility ({profile.total_reputation:.0f}/100) with {len(result.records)} on-chain record(s).",
-            reputation=rep,
         )
     except HTTPException:
         raise
@@ -154,28 +151,42 @@ async def explore_talents(
     domain: Optional[str] = None,
     limit: int = 20
 ):
-    """Retrieve featured talent profiles (Explorer)."""
-    # Note: Comprehensive on-chain discovery is slow.
-    # We use a set of featured/recent wallets or return a specific list.
+    """Retrieve talent profiles (Explorer)."""
+    # Active wallets on TestNet (for demonstration)
     featured_wallets = [
-        "IE6HFCN4AEBX3ZSHP7NOCVC54F7BKSEATB2AXXGYI3YU2GWQHK5IMCKUA", # Example
-        "A7MZ4O2B5M... (example)",
+        "IE6HFCN4AEBX3ZSHP7NOCVC54F7BKSEATB2AXXGYI3YU2GWQHK5IMCKUA",
+        "W4L6ALX6E6A2Z2B2C2D2E2F2G2H2I2J2K2L2M2N2O2P2Q2R2S2T2U2V", # Mock valid length
     ]
-    
-    # In a real app with a DB, we would query the index.
-    # For now, we'll return a mocked list of potential profiles or the requested wallet if provided in 'q'.
     
     profiles = []
     service = get_contract_service()
     
-    # If user searched for a specific wallet
-    wallets_to_check = [q] if q and len(q) >= 58 else featured_wallets[:limit]
+    # Prioritize search query if provided
+    wallets_to_check = []
+    if q and len(q) >= 58:
+        wallets_to_check.append(q)
+    
+    # Fill with featured wallets
+    for w in featured_wallets:
+        if w not in wallets_to_check:
+            wallets_to_check.append(w)
+            
+    wallets_to_check = wallets_to_check[:limit]
     
     for w in wallets_to_check:
         try:
+            # Check for valid address format first
+            if len(w) < 58: continue
+            
             result = service.get_skill_records(w)
             if result.success and result.records:
                 profile = rep_engine.compute(w, result.records)
+                
+                # Domain filter logic
+                if domain:
+                    match = (profile.top_domain == domain) or any(ds.domain == domain for ds in profile.domain_scores)
+                    if not match: continue
+
                 profiles.append({
                     "wallet": w,
                     "total_reputation": profile.total_reputation,
@@ -189,11 +200,8 @@ async def explore_talents(
                         for ds in profile.domain_scores
                     ]
                 })
-        except Exception:
+        except Exception as e:
+            logger.debug("Explorer lookup failed for %s: %s", w, e)
             continue
-
-    # Filter by domain if requested
-    if domain:
-        profiles = [p for p in profiles if p.get("top_domain") == domain or any(ds["domain"] == domain for ds in p.get("domain_scores", []))]
 
     return {"profiles": profiles}
