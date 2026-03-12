@@ -32,6 +32,14 @@ MAX_RETRY_DELAY = 16.0
 DEFAULT_VALIDITY_WINDOW = 1000
 DEFAULT_TIMEOUT = 30.0
 
+# Public TestNet Defaults (AlgoNode)
+TESTNET_ALGOD_SERVER = "https://testnet-api.algonode.cloud"
+TESTNET_ALGOD_PORT = 443
+TESTNET_ALGOD_TOKEN = ""
+TESTNET_INDEXER_SERVER = "https://testnet-idx.algonode.cloud"
+TESTNET_INDEXER_PORT = 443
+TESTNET_INDEXER_TOKEN = ""
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Exceptions
@@ -84,12 +92,32 @@ class AlgorandClientManager:
         if self._initialized:
             return
 
+        import os
+        # Default to TestNet if no server configured (prevents [WinError 10061])
+        if not os.getenv("ALGOD_SERVER"):
+            logger.info("No ALGOD_SERVER found in environment. Defaulting to AlgoNode TestNet.")
+            os.environ["ALGOD_SERVER"] = TESTNET_ALGOD_SERVER
+            os.environ["ALGOD_PORT"] = str(TESTNET_ALGOD_PORT)
+            os.environ["ALGOD_TOKEN"] = TESTNET_ALGOD_TOKEN
+            
+        if not os.getenv("INDEXER_SERVER"):
+            os.environ["INDEXER_SERVER"] = TESTNET_INDEXER_SERVER
+            os.environ["INDEXER_PORT"] = str(TESTNET_INDEXER_PORT)
+            os.environ["INDEXER_TOKEN"] = TESTNET_INDEXER_TOKEN
+
         try:
             self._client = algokit_utils.AlgorandClient.from_environment()
             self._client.set_default_validity_window(DEFAULT_VALIDITY_WINDOW)
 
-            deployer = self._client.account.from_environment("DEPLOYER")
-            self._deployer_address = deployer.address
+            # Some endpoints might fail if no DEPLOYER mnemonic available
+            # but for view-only (reputation) we don't necessarily need it.
+            try:
+                deployer = self._client.account.from_environment("DEPLOYER")
+                self._deployer_address = deployer.address
+            except Exception as e:
+                logger.warning("No DEPLOYER account in environment. On-chain submission might fail: %s", e)
+                # Use a dummy if absent for client properties to exist
+                self._deployer_address = "A" * 58 
 
             self._initialized = True
             logger.info("Algorand client initialized — deployer: %s", self._deployer_address)
