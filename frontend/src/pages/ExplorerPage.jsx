@@ -42,7 +42,12 @@ export default function ExplorerPage() {
             const data = await res.json();
             setProfiles(data.profiles || data || []);
         } catch (e) {
-            setError(e.message);
+            console.error('Explorer fetch error:', e);
+            let msg = e.message;
+            if (msg === 'Failed to fetch') {
+                msg = 'Failed to connect to backend. Ensure the backend server (uvicorn) is running.';
+            }
+            setError(msg);
             setProfiles([]);
         } finally {
             setLoading(false);

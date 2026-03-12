@@ -146,3 +146,54 @@ async def verify_wallet(wallet: str):
     except Exception as exc:
         logger.error("Verify failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+@router.get("/reputation/explore")
+async def explore_talents(
+    q: Optional[str] = None,
+    domain: Optional[str] = None,
+    limit: int = 20
+):
+    """Retrieve featured talent profiles (Explorer)."""
+    # Note: Comprehensive on-chain discovery is slow.
+    # We use a set of featured/recent wallets or return a specific list.
+    featured_wallets = [
+        "IE6HFCN4AEBX3ZSHP7NOCVC54F7BKSEATB2AXXGYI3YU2GWQHK5IMCKUA", # Example
+        "A7MZ4O2B5M... (example)",
+    ]
+    
+    # In a real app with a DB, we would query the index.
+    # For now, we'll return a mocked list of potential profiles or the requested wallet if provided in 'q'.
+    
+    profiles = []
+    service = get_contract_service()
+    
+    # If user searched for a specific wallet
+    wallets_to_check = [q] if q and len(q) >= 58 else featured_wallets[:limit]
+    
+    for w in wallets_to_check:
+        try:
+            result = service.get_skill_records(w)
+            if result.success and result.records:
+                profile = rep_engine.compute(w, result.records)
+                profiles.append({
+                    "wallet": w,
+                    "total_reputation": profile.total_reputation,
+                    "credibility_level": profile.credibility_level.value,
+                    "trust_index": profile.trust_index,
+                    "verification_badge": profile.verification_badge,
+                    "total_records": profile.total_records,
+                    "top_domain": profile.top_domain,
+                    "domain_scores": [
+                        {"domain": ds.domain, "score": ds.score}
+                        for ds in profile.domain_scores
+                    ]
+                })
+        except Exception:
+            continue
+
+    # Filter by domain if requested
+    if domain:
+        profiles = [p for p in profiles if p.get("top_domain") == domain or any(ds["domain"] == domain for ds in p.get("domain_scores", []))]
+
+    return {"profiles": profiles}

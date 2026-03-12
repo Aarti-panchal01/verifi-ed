@@ -10,7 +10,23 @@
  * - Type-safe endpoints
  */
 
-const API_URL = import.meta.env.VITE_API_URL;
+let API_URL = import.meta.env.VITE_API_URL;
+
+// Hybrid logic: if we are on a production-like host (not localhost) 
+// but API_URL is pointing to localhost, we attempt to use the relative path 
+// or a known production proxy. For Verifi-ed, we assume the backend might be 
+// at the same host /api or similar, or just allow the user to override.
+if (API_URL && API_URL.includes('localhost') && window.location.hostname.includes('vercel.app')) {
+    console.warn('API_URL points to localhost but app is on Vercel. Switching to Railway production URL.');
+    API_URL = 'https://verifi-ed-production.up.railway.app';
+}
+
+if (!API_URL) {
+    API_URL = window.location.hostname.includes('vercel.app') 
+        ? 'https://verifi-ed-production.up.railway.app' 
+        : '/api';
+}
+
 const TIMEOUT = 30000;
 const MAX_RETRIES = 3;
 

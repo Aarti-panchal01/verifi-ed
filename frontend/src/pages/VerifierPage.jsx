@@ -25,16 +25,21 @@ export default function VerifierPage() {
             if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || 'Verification failed');
             setData(await res.json());
         } catch (e) {
-            setError(e.message);
+            console.error('Verify error:', e);
+            let msg = e.message;
+            if (msg === 'Failed to fetch') {
+                msg = 'Failed to connect to backend. Ensure your local backend is running on port 8000.';
+            }
+            setError(msg);
         } finally {
             setLoading(false);
         }
     }
 
     function handleManualVerify() {
-        if (walletInput.length >= 58) {
-            setManualWallet(walletInput);
-            handleVerify(walletInput);
+        const addrToVerify = walletInput || address;
+        if (addrToVerify && addrToVerify.length >= 58) {
+            handleVerify(addrToVerify);
         }
     }
 
@@ -70,37 +75,31 @@ export default function VerifierPage() {
                             const addr = await connectWallet();
                             if (addr) handleVerify(addr);
                         }}>
-                            ⬡ Connect & Verify
+                            ⬡ Connect Wallet
                         </button>
-                    )}
-                    {!connected && (
-                        <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>or</span>
                     )}
                     <input
                         id="verifier-wallet-input"
                         className="form-input form-input-mono"
                         placeholder="Enter any Algorand wallet address…"
-                        value={connected ? address : walletInput}
-                        onChange={e => connected ? null : setWalletInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && (connected ? handleVerify(address) : handleManualVerify())}
+                        value={walletInput || (connected ? address : '')}
+                        onChange={e => setWalletInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleManualVerify()}
                         style={{ flex: 1, minWidth: 200 }}
-                        readOnly={connected}
                     />
                     <button
                         id="verifier-verify-btn"
                         className={`btn btn-primary ${loading ? 'btn-loading' : ''}`}
-                        onClick={() => connected ? handleVerify(address) : handleManualVerify()}
-                        disabled={loading || (!connected && walletInput.length < 58)}
+                        onClick={handleManualVerify}
+                        disabled={loading || (!connected && !walletInput && !address) || (walletInput && walletInput.length < 58)}
                     >
                         {loading ? '' : 'Verify'}
                     </button>
                 </div>
 
-                {connected && (
-                    <div style={{ marginTop: 8, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        Connected wallet: {address.slice(0, 8)}…{address.slice(-4)} • Or paste another wallet to verify someone else
-                    </div>
-                )}
+                <div style={{ marginTop: 8, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    {connected ? `Connected: ${address.slice(0, 8)}… — ` : ''}Paste any wallet address to verify their on-chain skill reputation.
+                </div>
 
                 {error && <div className="result-panel result-error" style={{ marginTop: 12 }}>{error}</div>}
             </div>

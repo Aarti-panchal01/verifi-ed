@@ -45,16 +45,21 @@ export default function DashboardPage() {
             setReputation(repData);
             setRecords(walletData.records || []);
         } catch (e) {
-            setError(e.message);
+            console.error('Fetch error:', e);
+            let msg = e.message;
+            if (msg === 'Failed to fetch') {
+                msg = 'Failed to connect to backend server. Ensure the backend is running locally on port 8000 (uvicorn) or deployed with HTTPS.';
+            }
+            setError(msg);
         } finally {
             setLoading(false);
         }
     }
 
     function handleManualLookup() {
-        if (walletInput.length >= 58) {
-            setManualWallet(walletInput);
-            handleLookup(walletInput);
+        const addrToLookup = walletInput || address;
+        if (addrToLookup && addrToLookup.length >= 58) {
+            handleLookup(addrToLookup);
         }
     }
 
@@ -70,41 +75,40 @@ export default function DashboardPage() {
             </div>
 
             {/* Wallet Input — Auto-fills when connected */}
-            {!connected && (
-                <div className="card" style={{ marginBottom: '24px' }}>
-                    <div className="card-header">
-                        <div className="card-icon">⬡</div>
-                        <div>
-                            <div className="card-title">Connect Wallet to View Dashboard</div>
-                            <div className="card-description">Connect Pera Wallet or paste your address</div>
-                        </div>
+            <div className="card" style={{ marginBottom: '24px' }}>
+                <div className="card-header">
+                    <div className="card-icon">⬡</div>
+                    <div>
+                        <div className="card-title">{connected ? 'View Skill Reputation' : 'Lookup Wallet Dashboard'}</div>
+                        <div className="card-description">Paste any Algorand address or connect your wallet</div>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {!connected && (
                         <button className="btn btn-accent" onClick={connectWallet}>
                             ⬡ Connect Pera Wallet
                         </button>
-                        <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>or</span>
-                        <input
-                            id="dashboard-wallet-input"
-                            className="form-input form-input-mono"
-                            placeholder="Paste Algorand wallet address…"
-                            value={walletInput}
-                            onChange={e => setWalletInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleManualLookup()}
-                            style={{ flex: 1, minWidth: 200 }}
-                        />
-                        <button
-                            id="dashboard-lookup-btn"
-                            className={`btn btn-primary ${loading ? 'btn-loading' : ''}`}
-                            onClick={handleManualLookup}
-                            disabled={loading || walletInput.length < 58}
-                        >
-                            {loading ? '' : 'Lookup'}
-                        </button>
-                    </div>
-                    {error && <div className="result-panel result-error" style={{ marginTop: '12px' }}>{error}</div>}
+                    )}
+                    <input
+                        id="dashboard-wallet-input"
+                        className="form-input form-input-mono"
+                        placeholder="Paste Algorand wallet address…"
+                        value={walletInput || (connected ? address : '')}
+                        onChange={e => setWalletInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleManualLookup()}
+                        style={{ flex: 1, minWidth: 200 }}
+                    />
+                    <button
+                        id="dashboard-lookup-btn"
+                        className={`btn btn-primary ${loading ? 'btn-loading' : ''}`}
+                        onClick={handleManualLookup}
+                        disabled={loading || (!walletInput && !address) || (walletInput && walletInput.length < 58)}
+                    >
+                        {loading ? '' : 'Lookup'}
+                    </button>
                 </div>
-            )}
+                {error && <div className="result-panel result-error" style={{ marginTop: '12px' }}>{error}</div>}
+            </div>
 
             {/* Connected but loading */}
             {connected && loading && (

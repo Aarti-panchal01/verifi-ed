@@ -1,13 +1,13 @@
-import { useState, useRef, useCallback } from 'react';
+﻿import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../context/WalletContext';
 import ScoreCircle from '../components/ScoreCircle';
 
-const API = import.meta.env.VITE_API_URL;
+const API = 'http://localhost:8000';
 const EXPLORER = 'https://testnet.explorer.perawallet.app/tx/';
 const ALGOD_API = 'https://testnet-api.algonode.cloud';
 
-/* Language → color mapping */
+/* Language ΓåÆ color mapping */
 const LANG_COLORS = {
     javascript: '#f1e05a', typescript: '#3178c6', python: '#3572A5', java: '#b07219',
     go: '#00ADD8', rust: '#dea584', cpp: '#f34b7d', 'c++': '#f34b7d', c: '#555555',
@@ -17,15 +17,15 @@ const LANG_COLORS = {
     r: '#198CE7', perl: '#0298c3',
 };
 
-/* Signal → emoji */
+/* Signal ΓåÆ emoji */
 const SIGNAL_ICONS = {
-    commit_activity: '🔥', code_volume: '📦', language_diversity: '🌐',
-    community_signals: '👥', documentation: '📝', recency: '⏱️',
-    repo_maturity: '🏛️', code_quality_signals: '✅', originality: '🎯',
-    content_presence: '📄', recent_activity: '⏱️', commit_consistency: '📊',
-    language_verification: '🔤', file_integrity: '🔒', file_type: '📋',
-    file_size: '📐', name_plausibility: '🏷️', project_structure: '🗂️',
-    hash_integrity: '🔐',
+    commit_activity: '≡ƒöÑ', code_volume: '≡ƒôª', language_diversity: '≡ƒîÉ',
+    community_signals: '≡ƒæÑ', documentation: '≡ƒô¥', recency: 'ΓÅ▒∩╕Å',
+    repo_maturity: '≡ƒÅ¢∩╕Å', code_quality_signals: 'Γ£à', originality: '≡ƒÄ»',
+    content_presence: '≡ƒôä', recent_activity: 'ΓÅ▒∩╕Å', commit_consistency: '≡ƒôè',
+    language_verification: '≡ƒöñ', file_integrity: '≡ƒöÆ', file_type: '≡ƒôï',
+    file_size: '≡ƒôÉ', name_plausibility: '≡ƒÅ╖∩╕Å', project_structure: '≡ƒùé∩╕Å',
+    hash_integrity: '≡ƒöÉ',
 };
 
 export default function SubmitPage() {
@@ -48,26 +48,19 @@ export default function SubmitPage() {
     const score = analysis ? Math.round(analysis.overall_score * 100) : 0;
     const tierLabel = score >= 90 ? 'exceptional' : score >= 70 ? 'strong' : score >= 50 ? 'moderate' : score >= 30 ? 'developing' : 'minimal';
 
-    /* ── STEP 1: Wallet ────────────────────────────────────────────── */
+    /* ΓöÇΓöÇ STEP 1: Wallet ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
     const handleSetWallet = () => {
         if (walletInput.length >= 58) {
             setManualWallet(walletInput);
         }
     };
 
-    /* ── STEP 2: Analyze ───────────────────────────────────────────── */
+    /* ΓöÇΓöÇ STEP 2: Analyze ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
     const handleAnalyze = useCallback(async () => {
         setError('');
         setAnalysis(null);
         setSubmitResult(null);
         setAnalyzing(true);
-
-        const wallet = address || walletInput;
-        // Auto-set the wallet in context if manually provided
-        if (!address && walletInput.length >= 58) {
-            setManualWallet(walletInput);
-        }
-
         const t0 = performance.now();
 
         try {
@@ -77,7 +70,7 @@ export default function SubmitPage() {
                 res = await fetch(`${API}/verify-evidence/repo`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ repo_url: repoUrl, wallet: wallet, mode }),
+                    body: JSON.stringify({ repo_url: repoUrl, wallet: address, mode }),
                 });
             } else {
                 if (!selectedFile) throw new Error('Please select a file.');
@@ -96,26 +89,16 @@ export default function SubmitPage() {
             }
 
             const data = await res.json();
-            
-            if (data.error) {
-                throw new Error(data.error);
-            }
-
             setAnalysis(data);
             setAnalyzeTime(((performance.now() - t0) / 1000).toFixed(1));
         } catch (e) {
-            console.error('Analysis error:', e);
-            let msg = e.message;
-            if (msg === 'Failed to fetch') {
-                msg = 'Failed to connect to backend. If you are on a deployed site (like Vercel), the backend must also be deployed with HTTPS. If running locally, ensure the backend server is started on port 8000.';
-            }
-            setError(msg || "Something went wrong during analysis.");
+            setError(e.message);
         } finally {
             setAnalyzing(false);
         }
-    }, [sourceType, repoUrl, selectedFile, mode, address, walletInput]);
+    }, [sourceType, repoUrl, selectedFile, mode, address]);
 
-    /* ── STEP 3: Submit On-Chain (Client-Side Signing) ──────────────── */
+    /* ΓöÇΓöÇ STEP 3: Submit On-Chain (Client-Side Signing) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
     const handleSubmit = useCallback(async () => {
         if (!analysis) return;
 
@@ -180,7 +163,7 @@ export default function SubmitPage() {
                     if (peraWallet) {
                         return peraWallet.signTransaction([txnsToSign]);
                     }
-                    throw new Error("No active signer. If you only pasted a wallet address, please click 'Connect Pera Wallet' at the top to enable signing.");
+                    throw new Error("Wallet not connected or Pera Wallet SDK not initialized. Please reconnect.");
                 },
                 suggestedParams: params,
                 onComplete: algosdk.OnApplicationComplete.NoOpOC,
@@ -215,25 +198,23 @@ export default function SubmitPage() {
     const langEntries = Object.entries(languages);
     const totalBytes = langEntries.reduce((s, [, b]) => s + b, 0) || 1;
 
-    const hasAddress = !!address && address.length >= 58;
-    const canSign = !!peraWallet;
-    const needsWallet = !hasAddress;
+    const needsWallet = !address && !connected;
 
     return (
         <div className="page">
-            {/* ── Header ──────────────────────────────────────────── */}
+            {/* ΓöÇΓöÇ Header ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             <div className="page-header">
                 <h1 className="page-title">Submit Evidence</h1>
                 <p className="page-subtitle">
-                    Connect wallet → Analyze evidence → Submit on-chain. Your skill attestation is stored immutably on Algorand.
+                    Connect wallet ΓåÆ Analyze evidence ΓåÆ Submit on-chain. Your skill attestation is stored immutably on Algorand.
                 </p>
             </div>
 
-            {/* ── STEP 1: Wallet Connection ───────────────────────── */}
+            {/* ΓöÇΓöÇ STEP 1: Wallet Connection ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             <div className="card" style={{ marginBottom: 20 }}>
                 <div className="card-header">
                     <div className="card-icon" style={{ background: connected ? 'var(--success-dim)' : 'var(--bg-elevated)' }}>
-                        {connected ? '✓' : '1'}
+                        {connected ? 'Γ£ô' : '1'}
                     </div>
                     <div>
                         <div className="card-title">{connected ? 'Wallet Connected' : 'Connect Wallet'}</div>
@@ -249,12 +230,12 @@ export default function SubmitPage() {
                 {!connected && (
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <button className="btn btn-accent" onClick={connectWallet} style={{ flex: '0 0 auto' }}>
-                            ⬡ Connect Pera Wallet
+                            Γ¼í Connect Pera Wallet
                         </button>
                         <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>or</span>
                         <input
                             className="form-input form-input-mono"
-                            placeholder="Paste wallet address…"
+                            placeholder="Paste wallet addressΓÇª"
                             value={walletInput}
                             onChange={e => setWalletInput(e.target.value)}
                             style={{ flex: 1, minWidth: 200 }}
@@ -270,11 +251,11 @@ export default function SubmitPage() {
                 )}
             </div>
 
-            {/* ── STEP 2: Evidence Input ──────────────────────────── */}
+            {/* ΓöÇΓöÇ STEP 2: Evidence Input ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             <div className="card" style={{ marginBottom: 20 }}>
                 <div className="card-header">
                     <div className="card-icon">
-                        {sourceType === 'repo' ? '⬡' : sourceType === 'certificate' ? '📜' : '📁'}
+                        {sourceType === 'repo' ? 'Γ¼í' : sourceType === 'certificate' ? '≡ƒô£' : '≡ƒôü'}
                     </div>
                     <div>
                         <div className="card-title">Evidence Source</div>
@@ -285,9 +266,9 @@ export default function SubmitPage() {
                 {/* Source tabs */}
                 <div className="mode-tabs">
                     {[
-                        { key: 'repo', label: '⬡ GitHub Repo', desc: 'Analyze public repo' },
-                        { key: 'certificate', label: '📜 Certificate', desc: 'Upload PDF/image' },
-                        { key: 'project', label: '📁 Project', desc: 'Upload ZIP folder' },
+                        { key: 'repo', label: 'Γ¼í GitHub Repo', desc: 'Analyze public repo' },
+                        { key: 'certificate', label: '≡ƒô£ Certificate', desc: 'Upload PDF/image' },
+                        { key: 'project', label: '≡ƒôü Project', desc: 'Upload ZIP folder' },
                     ].map(t => (
                         <button
                             key={t.key}
@@ -337,7 +318,7 @@ export default function SubmitPage() {
                                 style={{ padding: 10 }}
                             />
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 6 }}>
-                                💡 Zip your project folder before uploading. Our engine evaluates structure, code quality, documentation, and domain detection.
+                                ≡ƒÆí Zip your project folder before uploading. Our engine evaluates structure, code quality, documentation, and domain detection.
                             </div>
                         </>
                     )}
@@ -350,7 +331,7 @@ export default function SubmitPage() {
                     disabled={analyzing || (sourceType === 'repo' ? !repoUrl : !selectedFile)}
                     style={{ width: '100%' }}
                 >
-                    {analyzing ? '' : '🔍  Analyze Evidence'}
+                    {analyzing ? '' : '≡ƒöì  Analyze Evidence'}
                 </button>
 
                 {error && (
@@ -360,11 +341,11 @@ export default function SubmitPage() {
                 )}
             </div>
 
-            {/* ── Analyzing skeleton ──────────────────────────────── */}
+            {/* ΓöÇΓöÇ Analyzing skeleton ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {analyzing && (
                 <div className="card analyzing-skeleton">
                     <div className="skeleton-pulse">
-                        <div style={{ fontSize: '2rem', marginBottom: 12 }}>⚡</div>
+                        <div style={{ fontSize: '2rem', marginBottom: 12 }}>ΓÜí</div>
                         <div style={{ color: 'var(--accent-cyan)', fontWeight: 600, fontSize: '1.1rem' }}>
                             Analyzing {sourceType === 'repo' ? 'repository' : sourceType === 'certificate' ? 'certificate' : 'project'}...
                         </div>
@@ -384,13 +365,13 @@ export default function SubmitPage() {
                 </div>
             )}
 
-            {/* ═══════════════════════════════════════════════════════
+            {/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
                 ANALYSIS RESULTS
-               ═══════════════════════════════════════════════════════ */}
+               ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */}
             {analysis && !analyzing && (
                 <div className="analysis-panel">
 
-                    {/* ── Score Hero ──────────────────────────────── */}
+                    {/* ΓöÇΓöÇ Score Hero ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     <div className="score-hero">
                         <ScoreCircle score={score} size={130} label="Credibility" />
                         <div className="score-hero-info" style={{ flex: 1 }}>
@@ -405,66 +386,66 @@ export default function SubmitPage() {
                                 {sourceType === 'repo'
                                     ? (meta.description || 'AI-powered repository credibility assessment.')
                                     : sourceType === 'certificate'
-                                        ? `File: ${meta.filename || 'Unknown'} • ${meta.extension || ''} • ${((meta.size_bytes || 0) / 1024).toFixed(1)} KB`
-                                        : `${meta.code_files || 0} code files • ${meta.total_files || 0} total files`}
+                                        ? `File: ${meta.filename || 'Unknown'} ΓÇó ${meta.extension || ''} ΓÇó ${((meta.size_bytes || 0) / 1024).toFixed(1)} KB`
+                                        : `${meta.code_files || 0} code files ΓÇó ${meta.total_files || 0} total files`}
                             </p>
                             <span className={`tier-badge ${tierLabel}`}>
-                                {tierLabel} — {score}/100
+                                {tierLabel} ΓÇö {score}/100
                             </span>
                             {analyzeTime && (
                                 <span style={{ marginLeft: 12, fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                                    ⚡ {analyzeTime}s
+                                    ΓÜí {analyzeTime}s
                                 </span>
                             )}
                         </div>
                     </div>
 
-                    {/* ── Community Stats (GitHub only) ────────────── */}
+                    {/* ΓöÇΓöÇ Community Stats (GitHub only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {sourceType === 'repo' && meta.stars !== undefined && (
                         <div className="community-row">
                             <div className="community-stat">
-                                <div className="community-stat-icon">⭐</div>
+                                <div className="community-stat-icon">Γ¡É</div>
                                 <div className="community-stat-value">{meta.stars?.toLocaleString() || 0}</div>
                                 <div className="community-stat-label">Stars</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">🍴</div>
+                                <div className="community-stat-icon">≡ƒì┤</div>
                                 <div className="community-stat-value">{meta.forks?.toLocaleString() || 0}</div>
                                 <div className="community-stat-label">Forks</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">👥</div>
+                                <div className="community-stat-icon">≡ƒæÑ</div>
                                 <div className="community-stat-value">{meta.contributor_count?.toLocaleString() || 0}</div>
                                 <div className="community-stat-label">Contributors</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">📄</div>
+                                <div className="community-stat-icon">≡ƒôä</div>
                                 <div className="community-stat-value">{meta.file_count?.toLocaleString() || 0}</div>
                                 <div className="community-stat-label">Files</div>
                             </div>
                         </div>
                     )}
 
-                    {/* ── Certificate-specific Details ────────────── */}
+                    {/* ΓöÇΓöÇ Certificate-specific Details ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {sourceType === 'certificate' && (
                         <div className="community-row">
                             <div className="community-stat">
-                                <div className="community-stat-icon">📄</div>
+                                <div className="community-stat-icon">≡ƒôä</div>
                                 <div className="community-stat-value">{meta.extension || '?'}</div>
                                 <div className="community-stat-label">Format</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">📐</div>
+                                <div className="community-stat-icon">≡ƒôÉ</div>
                                 <div className="community-stat-value">{((meta.size_bytes || 0) / 1024).toFixed(0)}</div>
                                 <div className="community-stat-label">Size (KB)</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">🔒</div>
-                                <div className="community-stat-value" style={{ fontSize: '0.85rem' }}>{(meta.sha256 || '').slice(0, 8)}…</div>
+                                <div className="community-stat-icon">≡ƒöÆ</div>
+                                <div className="community-stat-value" style={{ fontSize: '0.85rem' }}>{(meta.sha256 || '').slice(0, 8)}ΓÇª</div>
                                 <div className="community-stat-label">SHA-256</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">{analysis.verified ? '✓' : '⚠'}</div>
+                                <div className="community-stat-icon">{analysis.verified ? 'Γ£ô' : 'ΓÜá'}</div>
                                 <div className="community-stat-value" style={{ color: analysis.verified ? 'var(--success)' : 'var(--warning)' }}>
                                     {analysis.verified ? 'Valid' : 'Check'}
                                 </div>
@@ -473,26 +454,26 @@ export default function SubmitPage() {
                         </div>
                     )}
 
-                    {/* ── Project-specific Details ────────────────── */}
+                    {/* ΓöÇΓöÇ Project-specific Details ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {sourceType === 'project' && (
                         <div className="community-row">
                             <div className="community-stat">
-                                <div className="community-stat-icon">📁</div>
+                                <div className="community-stat-icon">≡ƒôü</div>
                                 <div className="community-stat-value">{meta.total_files || 0}</div>
                                 <div className="community-stat-label">Total Files</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">💻</div>
+                                <div className="community-stat-icon">≡ƒÆ╗</div>
                                 <div className="community-stat-value">{meta.code_files || 0}</div>
                                 <div className="community-stat-label">Code Files</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">🔐</div>
-                                <div className="community-stat-value" style={{ fontSize: '0.85rem' }}>{(meta.project_hash || '').slice(0, 8)}…</div>
+                                <div className="community-stat-icon">≡ƒöÉ</div>
+                                <div className="community-stat-value" style={{ fontSize: '0.85rem' }}>{(meta.project_hash || '').slice(0, 8)}ΓÇª</div>
                                 <div className="community-stat-label">Hash</div>
                             </div>
                             <div className="community-stat">
-                                <div className="community-stat-icon">{analysis.verified ? '✓' : '⚠'}</div>
+                                <div className="community-stat-icon">{analysis.verified ? 'Γ£ô' : 'ΓÜá'}</div>
                                 <div className="community-stat-value" style={{ color: analysis.verified ? 'var(--success)' : 'var(--warning)' }}>
                                     {analysis.verified ? 'Valid' : 'Minimal'}
                                 </div>
@@ -501,7 +482,7 @@ export default function SubmitPage() {
                         </div>
                     )}
 
-                    {/* ── Languages (GitHub only) ─────────────────── */}
+                    {/* ΓöÇΓöÇ Languages (GitHub only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {langEntries.length > 0 && (
                         <div style={{ marginBottom: 20 }}>
                             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
@@ -522,7 +503,7 @@ export default function SubmitPage() {
                         </div>
                     )}
 
-                    {/* ── Signal Cards ────────────────────────────── */}
+                    {/* ΓöÇΓöÇ Signal Cards ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {analysis.signals?.length > 0 && (
                         <>
                             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
@@ -533,7 +514,7 @@ export default function SubmitPage() {
                                     <div className="signal-card" key={i} style={{ animationDelay: `${i * 0.05}s` }}>
                                         <div className="signal-card-header">
                                             <span className="signal-card-name">
-                                                {SIGNAL_ICONS[s.signal_name] || '📊'} {s.signal_name.replace(/_/g, ' ')}
+                                                {SIGNAL_ICONS[s.signal_name] || '≡ƒôè'} {s.signal_name.replace(/_/g, ' ')}
                                             </span>
                                             <span className="signal-card-score">{(s.normalized * 100).toFixed(0)}</span>
                                         </div>
@@ -547,7 +528,7 @@ export default function SubmitPage() {
                         </>
                     )}
 
-                    {/* ── Domains ─────────────────────────────────── */}
+                    {/* ΓöÇΓöÇ Domains ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {analysis.domains?.length > 0 && (
                         <div style={{ marginBottom: 20 }}>
                             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
@@ -564,7 +545,7 @@ export default function SubmitPage() {
                         </div>
                     )}
 
-                    {/* ── AI Explanation ──────────────────────────── */}
+                    {/* ΓöÇΓöÇ AI Explanation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {(meta.explanation || analysis.explanation) && (
                         <div className="explanation-box">
                             <div style={{ marginBottom: 6, color: 'var(--accent-cyan)', fontWeight: 600, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -574,40 +555,35 @@ export default function SubmitPage() {
                         </div>
                     )}
 
-                    {/* ── Submit Button ───────────────────────────── */}
+                    {/* ΓöÇΓöÇ Submit Button ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
                     {!submitResult && (
                         <div>
                             {needsWallet && (
-                                <div className="notice-box notice-warning" style={{ fontSize: '0.85rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    ⚠ Connect your wallet above before submitting on-chain.
-                                </div>
-                            )}
-                            {hasAddress && !canSign && (
-                                <div className="notice-box notice-info" style={{ fontSize: '0.85rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-cyan)' }}>
-                                    💡 Address provided in view-only mode. To sign and record this on-chain, please click "Connect Pera Wallet" at the top.
+                                <div style={{ fontSize: '0.85rem', color: 'var(--warning)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    ΓÜá Connect your wallet above before submitting on-chain.
                                 </div>
                             )}
                             <button
                                 id="submit-btn"
                                 className={`btn btn-accent ${submitting ? 'btn-loading' : ''}`}
                                 onClick={handleSubmit}
-                                disabled={submitting || !hasAddress}
+                                disabled={submitting || needsWallet}
                                 style={{ width: '100%', marginTop: 8 }}
                             >
-                                {submitting ? '' : '⬡  Submit On-Chain  →'}
+                                {submitting ? '' : 'Γ¼í  Submit On-Chain  ΓåÆ'}
                             </button>
                         </div>
                     )}
                 </div>
             )}
 
-            {/* ═══════════════════════════════════════════════════════
-                SUBMISSION RESULT — INSTANT FEEDBACK
-               ═══════════════════════════════════════════════════════ */}
+            {/* ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+                SUBMISSION RESULT ΓÇö INSTANT FEEDBACK
+               ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ */}
             {submitResult && (
                 <div className="result-panel result-success submit-success" style={{ marginTop: 20 }}>
                     <div className="submit-success-header">
-                        <div className="submit-success-icon">✓</div>
+                        <div className="submit-success-icon">Γ£ô</div>
                         <div>
                             <strong style={{ fontSize: '1.15rem', display: 'block' }}>Transaction Submitted</strong>
                             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -635,20 +611,20 @@ export default function SubmitPage() {
                                 rel="noreferrer"
                                 style={{ color: 'var(--accent-cyan)', textDecoration: 'none', fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}
                             >
-                                {(submitResult.transaction_id || '').substring(0, 16)}… ↗
+                                {(submitResult.transaction_id || '').substring(0, 16)}ΓÇª Γåù
                             </a>
                         </div>
                         <div className="submit-detail-item">
                             <span className="submit-detail-label">Status</span>
                             <span className="submit-detail-value" style={{ color: 'var(--success)' }}>
-                                {submitResult.status === 'confirmed' ? '✓ Confirmed' : '⏳ Pending Confirmation'}
+                                {submitResult.status === 'confirmed' ? 'Γ£ô Confirmed' : 'ΓÅ│ Pending Confirmation'}
                             </span>
                         </div>
                     </div>
 
                     <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
                         <button className="btn btn-secondary" onClick={() => navigate('/dashboard')}>
-                            📊 View Dashboard
+                            ≡ƒôè View Dashboard
                         </button>
                         <button className="btn btn-ghost" onClick={() => { setAnalysis(null); setSubmitResult(null); setError(''); setRepoUrl(''); setSelectedFile(null); }}>
                             + Submit Another
