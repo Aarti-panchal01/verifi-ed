@@ -11,7 +11,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+import json
 from typing import Optional
+from pathlib import Path as FSPath
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
@@ -20,6 +22,35 @@ from backend.core.contract_service import get_contract_service
 
 logger = logging.getLogger("backend.submission")
 router = APIRouter(tags=["Submission"])
+
+# region agent log
+_AGENT_DEBUG_LOG_PATH = FSPath(
+    r"c:\Users\Aarti Panchal\Downloads\verifi.ed-main\verifi.ed\.cursor\debug.log"
+)
+
+
+def _agent_log(*, hypothesisId: str, runId: str, location: str, message: str, data: dict) -> None:
+    try:
+        _AGENT_DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _AGENT_DEBUG_LOG_PATH.open("a", encoding="utf-8").write(
+            json.dumps(
+                {
+                    "id": f"log_{int(time.time() * 1000)}_{hypothesisId}",
+                    "timestamp": int(time.time() * 1000),
+                    "hypothesisId": hypothesisId,
+                    "runId": runId,
+                    "location": location,
+                    "message": message,
+                    "data": data,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+    except Exception:
+        pass
+
+# endregion agent log
 
 
 class SubmitRequest(BaseModel):
@@ -71,6 +102,13 @@ def confirm_transaction_background(txid: str):
 @router.post("/submit/async", response_model=AsyncSubmitResponse)
 async def submit_record_async(req: SubmitRequest, background_tasks: BackgroundTasks):
     """Submit a skill attestation record on-chain (async - returns immediately)."""
+    _agent_log(
+        hypothesisId="H-submit-async",
+        runId="pre-fix",
+        location="backend/routers/submission.py:submit_record_async",
+        message="submit_record_async entry.",
+        data={"skill_id": req.skill_id, "score": req.score, "mode": req.mode, "has_wallet_prepare": False},
+    )
     service = get_contract_service()
 
     timestamp = int(time.time())
@@ -94,6 +132,13 @@ async def submit_record_async(req: SubmitRequest, background_tasks: BackgroundTa
 
     if not result.success:
         logger.error("Submission failed: %s", result.error)
+        _agent_log(
+            hypothesisId="H-submit-async",
+            runId="pre-fix",
+            location="backend/routers/submission.py:submit_record_async",
+            message="submit_record_async upstream failed.",
+            data={"error": result.error[:300]},
+        )
         raise HTTPException(status_code=502, detail=result.error)
 
     # Add background task to confirm transaction
@@ -119,6 +164,13 @@ class PrepareRequest(BaseModel):
 @router.post("/submit/prepare")
 async def prepare_submission(req: PrepareRequest):
     """Ensure App hash MBR for user's box before frontend submission."""
+    _agent_log(
+        hypothesisId="H-submit-prepare",
+        runId="pre-fix",
+        location="backend/routers/submission.py:prepare_submission",
+        message="prepare_submission entry.",
+        data={"wallet_len": len(req.wallet or "")},
+    )
     service = get_contract_service()
     service.ensure_user_mbr(req.wallet)
     return {"status": "ready", "wallet": req.wallet}
@@ -127,6 +179,13 @@ async def prepare_submission(req: PrepareRequest):
 @router.post("/submit", response_model=SubmitResponse)
 async def submit_record(req: SubmitRequest):
     """Submit a skill attestation record on-chain."""
+    _agent_log(
+        hypothesisId="H-submit",
+        runId="pre-fix",
+        location="backend/routers/submission.py:submit_record",
+        message="submit_record entry.",
+        data={"skill_id": req.skill_id, "score": req.score, "mode": req.mode},
+    )
     service = get_contract_service()
 
     timestamp = int(time.time())
@@ -150,6 +209,13 @@ async def submit_record(req: SubmitRequest):
 
     if not result.success:
         logger.error("Submission failed: %s", result.error)
+        _agent_log(
+            hypothesisId="H-submit",
+            runId="pre-fix",
+            location="backend/routers/submission.py:submit_record",
+            message="submit_record upstream failed.",
+            data={"error": result.error[:300]},
+        )
         raise HTTPException(status_code=502, detail=result.error)
 
     return SubmitResponse(

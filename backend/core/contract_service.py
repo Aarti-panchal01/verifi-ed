@@ -23,6 +23,8 @@ from pathlib import Path
 from typing import Any
 
 import algokit_utils
+import base64
+from algosdk import encoding as algo_encoding
 from algokit_utils import AlgoAmount, PaymentParams
 
 # Fix import path for smart contract artifacts
@@ -39,6 +41,35 @@ from backend.core.algorand_client import AlgorandClientManager, get_manager
 from backend.core.arc4_decoder import ARC4Decoder
 
 logger = logging.getLogger("backend.core.contract")
+
+# region agent log
+import json
+
+_AGENT_DEBUG_LOG_PATH = Path(r"c:\Users\Aarti Panchal\Downloads\verifi.ed-main\verifi.ed\.cursor\debug.log")
+
+
+def _agent_log(*, hypothesisId: str, runId: str, location: str, message: str, data: dict) -> None:
+    try:
+        _AGENT_DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _AGENT_DEBUG_LOG_PATH.open("a", encoding="utf-8").write(
+            json.dumps(
+                {
+                    "id": f"log_{int(time.time() * 1000)}_{hypothesisId}",
+                    "timestamp": int(time.time() * 1000),
+                    "hypothesisId": hypothesisId,
+                    "runId": runId,
+                    "location": location,
+                    "message": message,
+                    "data": data,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+    except Exception:
+        pass
+
+# endregion agent log
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration
@@ -99,6 +130,19 @@ class ContractService:
     def client(self) -> VerifiedProtocolClient:
         """Get initialized VerifiedProtocolClient."""
         if self._client is None:
+            # region agent log
+            _agent_log(
+                hypothesisId="H-contract-client-init",
+                runId="pre-fix",
+                location="backend/core/contract_service.py:client",
+                message="Initializing VerifiedProtocolClient (sender/app).",
+                data={
+                    "app_id": self.app_id,
+                    "default_sender_prefix": (self.manager.deployer_address or "")[:6],
+                    "default_sender_len": len(self.manager.deployer_address or ""),
+                },
+            )
+            # endregion agent log
             self._client = VerifiedProtocolClient(
                 algorand=self.manager.client,
                 app_id=self.app_id,
@@ -300,43 +344,67 @@ class ContractService:
             Query result with decoded records.
         """
         try:
-            send_params = self.manager.create_send_params()
-
-            # Step 1: Get record count (using simulate/call for speed + no fees)
-            def get_count():
-                return self.client.call.get_record_count(
-                    args=GetRecordCountArgs(wallet=wallet)
+            # region agent log
+            _agent_log(
+                hypothesisId="H-records-call-fails",
+                runId="pre-fix",
+                location="backend/core/contract_service.py:get_skill_records",
+                message="Begin get_skill_records call (wallet shape).",
+                data={"wallet_prefix": wallet[:6], "wallet_len": len(wallet)},
+            )
+            # endregion agent log
+            # IMPORTANT: For read paths, avoid relying on AppClient "call" namespaces or any
+            # transaction signing (Railway may not have DEPLOYER keys). Instead, read the
+            # wallet's Box directly via algod.
+            # If wallet is not a valid Algorand address length, treat as zero records.
+            # This prevents 502s from bubbling up to the frontend on user typos or
+            # invalid "demo" addresses.
+            if len(wallet) != 58:
+                _agent_log(
+                    hypothesisId="H-invalid-wallet-len",
+                    runId="post-fix",
+                    location="backend/core/contract_service.py:get_skill_records",
+                    message="Invalid wallet address length; returning empty records.",
+                    data={"wallet_len": len(wallet), "wallet_prefix": wallet[:6]},
                 )
+                logger.warning("Invalid wallet address length %d (expected 58): %s", len(wallet), wallet)
+                return RecordQueryResult(wallet=wallet, record_count=0, records=[], success=True)
 
-            count_result = get_count()
-            record_count = count_result.abi_return or 0
-
-            logger.info("Wallet %s has %d records", wallet[:12] + "...", record_count)
-
-            if record_count == 0:
-                return RecordQueryResult(
-                    wallet=wallet,
-                    record_count=0,
-                    records=[],
-                    success=True,
+            try:
+                wallet_key = algo_encoding.decode_address(wallet)  # 32-byte box key
+            except Exception as exc:
+                _agent_log(
+                    hypothesisId="H-invalid-wallet-decode",
+                    runId="post-fix",
+                    location="backend/core/contract_service.py:get_skill_records",
+                    message="Invalid wallet address; decode failed; returning empty records.",
+                    data={"error_type": type(exc).__name__, "error": str(exc)[:200]},
                 )
+                logger.warning("Invalid wallet address decode failed: %s", exc)
+                return RecordQueryResult(wallet=wallet, record_count=0, records=[], success=True)
+            algod = self.manager.client.client.algod
 
-            # Step 2: Get raw box data (using simulate/call)
-            def get_records():
-                return self.client.call.get_skill_records(
-                    args=GetSkillRecordsArgs(wallet=wallet)
-                )
-
-            raw_result = get_records()
-
-            raw_return = raw_result.abi_return
-            raw_bytes = bytes(raw_return) if not isinstance(raw_return, bytes) else raw_return
+            try:
+                box = algod.application_box_by_name(self.app_id, wallet_key)
+                # algod returns base64 in "value"
+                raw_b64 = box.get("value", "")
+                raw_bytes = base64.b64decode(raw_b64) if isinstance(raw_b64, str) else bytes(raw_b64)
+            except Exception as exc:
+                # If box doesn't exist, treat as zero records
+                msg = str(exc).lower()
+                if "box" in msg and ("not found" in msg or "does not exist" in msg or "404" in msg):
+                    raw_bytes = b""
+                else:
+                    raise
 
             # Step 3: Decode records
             records = self.decoder.decode_skill_records(raw_bytes)
 
             # Filter out error records for count validation
             valid_records = [r for r in records if self.decoder.validate_record(r)]
+
+            record_count = len(valid_records)
+            logger.info("Wallet %s has %d records", wallet[:12] + "...", record_count)
 
             logger.info(
                 "✓ Retrieved %d records (%d valid) for wallet %s",
@@ -352,6 +420,15 @@ class ContractService:
 
         except Exception as exc:
             logger.error("Failed to retrieve records for %s: %s", wallet, exc, exc_info=True)
+            # region agent log
+            _agent_log(
+                hypothesisId="H-records-call-fails",
+                runId="pre-fix",
+                location="backend/core/contract_service.py:get_skill_records",
+                message="get_skill_records exception.",
+                data={"error_type": type(exc).__name__, "error": str(exc)[:300]},
+            )
+            # endregion agent log
             return RecordQueryResult(
                 wallet=wallet,
                 record_count=0,
