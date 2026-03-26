@@ -286,10 +286,8 @@ This is production infrastructure. All contributions must:
 - Include proper error handling
 - Update documentation
 
-## 📞 Support
 
 For issues, questions, or contributions, please open an issue on the repository.
 
 ---
 
-**Built with ❤️ for the decentralized future of talent verification**
