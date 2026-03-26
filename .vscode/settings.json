@@ -51,4 +51,12 @@
   //  so instead let's set it to RemoteSigned for VS Code terminal
   "terminal.integrated.shellArgs.windows": ["-ExecutionPolicy", "RemoteSigned"],
   "algorandPython.languageServer.enable": true,
+  "cursorpyright.analysis.autoImportCompletions": true,
+  "cursorpyright.analysis.diagnosticSeverityOverrides": {
+    "reportMissingModuleSource": "none"
+  },
+  "cursorpyright.analysis.extraPaths": [
+    "${workspaceFolder}/smart_contracts"
+  ],
+  "cursorpyright.analysis.typeCheckingMode": "off",
 }

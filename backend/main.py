@@ -27,6 +27,37 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+# region agent log
+import json
+from pathlib import Path
+
+_AGENT_DEBUG_LOG_PATH = Path(r"c:\Users\Aarti Panchal\Downloads\verifi.ed-main\verifi.ed\.cursor\debug.log")
+
+
+def _agent_log(*, hypothesisId: str, runId: str, location: str, message: str, data: dict) -> None:
+    try:
+        _AGENT_DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _AGENT_DEBUG_LOG_PATH.open("a", encoding="utf-8").write(
+            json.dumps(
+                {
+                    "id": f"log_{int(time.time() * 1000)}_{hypothesisId}",
+                    "timestamp": int(time.time() * 1000),
+                    "hypothesisId": hypothesisId,
+                    "runId": runId,
+                    "location": location,
+                    "message": message,
+                    "data": data,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+    except Exception:
+        # Never let debug logging break production paths
+        pass
+
+# endregion agent log
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +75,21 @@ logger = logging.getLogger("verified_protocol")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Verified Protocol API starting…")
+    # region agent log
+    _agent_log(
+        hypothesisId="H-startup-env",
+        runId="pre-fix",
+        location="backend/main.py:lifespan",
+        message="API starting; key env presence (no values).",
+        data={
+            "has_ALGOD_SERVER": bool(__import__("os").getenv("ALGOD_SERVER")),
+            "has_INDEXER_SERVER": bool(__import__("os").getenv("INDEXER_SERVER")),
+            "has_DEPLOYER_MNEMONIC": bool(__import__("os").getenv("DEPLOYER_MNEMONIC")),
+            "has_DEPLOYER": bool(__import__("os").getenv("DEPLOYER")),
+            "has_PORT": bool(__import__("os").getenv("PORT")),
+        },
+    )
+    # endregion agent log
     yield
     logger.info("🛑 Verified Protocol API shutting down…")
 
@@ -104,6 +150,24 @@ async def rate_limit_middleware(request: Request, call_next):
         
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
+
+    # region agent log
+    _agent_log(
+        hypothesisId="H-cors-proxy-ip",
+        runId="pre-fix",
+        location="backend/main.py:rate_limit_middleware",
+        message="Request metadata for CORS/proxy/IP debugging.",
+        data={
+            "path": request.url.path,
+            "method": request.method,
+            "origin": request.headers.get("origin"),
+            "host": request.headers.get("host"),
+            "x_forwarded_for_present": bool(request.headers.get("x-forwarded-for")),
+            "x_forwarded_proto": request.headers.get("x-forwarded-proto"),
+            "client_ip_seen": client_ip,
+        },
+    )
+    # endregion agent log
     
     if client_ip not in _rate_store:
         _rate_store[client_ip] = []
@@ -122,9 +186,45 @@ async def rate_limit_middleware(request: Request, call_next):
     _rate_store[client_ip].append(now)
     return await call_next(request)
 
+# region agent log
+@app.middleware("http")
+async def agent_exception_logger(request: Request, call_next):
+    """Debug-only: log exceptions into debug.log for runtime evidence."""
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        _agent_log(
+            hypothesisId="H-unhandled-exception",
+            runId="pre-fix",
+            location="backend/main.py:agent_exception_logger",
+            message="Unhandled exception in request pipeline.",
+            data={
+                "path": request.url.path,
+                "method": request.method,
+                "error_type": type(exc).__name__,
+                "error": str(exc)[:500],
+            },
+        )
+        raise
+# endregion agent log
+
 @app.get("/health", tags=["System"])
 async def health():
     return {"status": "ok", "time": time.time()}
+
+# region agent log
+@app.get("/__agent_debug/ping", tags=["System"])
+async def agent_debug_ping():
+    """Debug-only endpoint to verify NDJSON logging is working."""
+    _agent_log(
+        hypothesisId="H-log-pipeline",
+        runId="pre-fix",
+        location="backend/main.py:/__agent_debug/ping",
+        message="Ping to validate debug log pipeline.",
+        data={"ok": True},
+    )
+    return {"ok": True}
+# endregion agent log
 
 
 # ── Import & register routers ────────────────────────────────────────

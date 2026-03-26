@@ -23,6 +23,35 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger("backend.core.algorand")
 
+# region agent log
+import json
+
+_AGENT_DEBUG_LOG_PATH = Path(r"c:\Users\Aarti Panchal\Downloads\verifi.ed-main\verifi.ed\.cursor\debug.log")
+
+
+def _agent_log(*, hypothesisId: str, runId: str, location: str, message: str, data: dict) -> None:
+    try:
+        _AGENT_DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _AGENT_DEBUG_LOG_PATH.open("a", encoding="utf-8").write(
+            json.dumps(
+                {
+                    "id": f"log_{int(time.time() * 1000)}_{hypothesisId}",
+                    "timestamp": int(time.time() * 1000),
+                    "hypothesisId": hypothesisId,
+                    "runId": runId,
+                    "location": location,
+                    "message": message,
+                    "data": data,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+    except Exception:
+        pass
+
+# endregion agent log
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +122,20 @@ class AlgorandClientManager:
             return
 
         import os
+        # region agent log
+        _agent_log(
+            hypothesisId="H-deployer-missing",
+            runId="pre-fix",
+            location="backend/core/algorand_client.py:initialize",
+            message="Initializing Algorand client; env presence (no values).",
+            data={
+                "has_ALGOD_SERVER": bool(os.getenv("ALGOD_SERVER")),
+                "has_INDEXER_SERVER": bool(os.getenv("INDEXER_SERVER")),
+                "has_DEPLOYER_MNEMONIC": bool(os.getenv("DEPLOYER_MNEMONIC")),
+                "has_DEPLOYER": bool(os.getenv("DEPLOYER")),
+            },
+        )
+        # endregion agent log
         # Default to TestNet if no server configured (prevents [WinError 10061])
         if not os.getenv("ALGOD_SERVER"):
             logger.info("No ALGOD_SERVER found in environment. Defaulting to AlgoNode TestNet.")
@@ -118,6 +161,20 @@ class AlgorandClientManager:
                 logger.warning("No DEPLOYER account in environment. On-chain submission might fail: %s", e)
                 # Use a dummy if absent for client properties to exist
                 self._deployer_address = "A" * 58 
+
+            # region agent log
+            _agent_log(
+                hypothesisId="H-deployer-missing",
+                runId="pre-fix",
+                location="backend/core/algorand_client.py:initialize",
+                message="Algorand client initialized; deployer address shape.",
+                data={
+                    "deployer_address_prefix": (self._deployer_address or "")[:6],
+                    "deployer_address_len": len(self._deployer_address or ""),
+                    "deployer_is_dummy_all_A": bool(self._deployer_address) and set(self._deployer_address) == {"A"},
+                },
+            )
+            # endregion agent log
 
             self._initialized = True
             logger.info("Algorand client initialized — deployer: %s", self._deployer_address)
